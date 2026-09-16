@@ -687,7 +687,13 @@ export function handleMessages(
   }
 
   if (message.action === "pair_disconnected") {
-    stopPairSession(message.reason).catch(() => {});
+    const errorCode =
+      message.reason === "connectionFailed"
+        ? "PAIR_CONNECTION_FAILED"
+        : undefined;
+    serialize(() => endPairSession(message.reason, { errorCode })).catch(
+      () => {},
+    );
     return false;
   }
 

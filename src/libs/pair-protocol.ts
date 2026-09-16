@@ -16,9 +16,32 @@ export const PAIR_ICE_GATHERING_TIMEOUT_MS = 1500;
 export const PAIR_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 export const PAIR_MAX_DURATION_MS = 30 * 60 * 1000;
 
-export const PAIR_ICE_SERVERS: RTCIceServer[] = [
-  { urls: "stun:stun.cloudflare.com:3478" },
-];
+export const PAIR_ICE_SERVERS: RTCIceServer[] = [];
+
+const SDP_LINE_BREAK = /\r?\n/;
+const CANDIDATE_LINE = /^a=candidate:\S+ \d+ \S+ \d+ (\S+) \d+ typ (\S+)/;
+const PRIVATE_IPV4 =
+  /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+const LOCAL_IPV6 = /^(fe[89ab][0-9a-f]:|f[cd][0-9a-f]{2}:|::1$)/i;
+
+function isLocalNetworkAddress(address: string): boolean {
+  const value = address.toLowerCase();
+  if (value.endsWith(".local")) return true;
+  if (PRIVATE_IPV4.test(value)) return true;
+  return LOCAL_IPV6.test(value.replace(/^\[|\]$/g, ""));
+}
+
+export function keepLocalNetworkCandidates(sdp: string): string {
+  return sdp
+    .split(SDP_LINE_BREAK)
+    .filter((line) => {
+      const match = CANDIDATE_LINE.exec(line);
+      if (!match) return true;
+      const [, address, type] = match;
+      return type === "host" && isLocalNetworkAddress(address);
+    })
+    .join("\r\n");
+}
 
 export type PairNavAction = "back" | "forward" | "reload";
 

@@ -3,6 +3,7 @@ import {
   clampInterval,
   clampQuality,
   encodeFrameChunks,
+  keepLocalNetworkCandidates,
   PAIR_AFTER_INPUT_DELAY_MS,
   PAIR_CONTROL_CHANNEL,
   PAIR_DEFAULT_INTERVAL_MS,
@@ -277,7 +278,9 @@ export function createPairPeerModule(
     control.onmessage = (event) => {
       if (typeof event.data === "string") handleViewerMessage(event.data);
     };
+    let everConnected = false;
     control.onopen = () => {
+      everConnected = true;
       logger.info("offscreen:pair-control-open", {});
       notifyBackground({ action: "pair_connected" });
     };
@@ -291,10 +294,11 @@ export function createPairPeerModule(
       ) {
         logger.warn("offscreen:pair-connection-lost", {
           connectionState: pc.connectionState,
+          everConnected,
         });
         notifyBackground({
           action: "pair_disconnected",
-          reason: "connectionLost",
+          reason: everConnected ? "connectionLost" : "connectionFailed",
         });
         teardown();
       }
@@ -304,15 +308,16 @@ export function createPairPeerModule(
     await pc.setLocalDescription(offer);
     await waitForIceGathering(pc);
 
-    const sdp = pc.localDescription?.sdp;
-    if (!sdp) {
+    const rawSdp = pc.localDescription?.sdp;
+    if (!rawSdp) {
       notifyBackground({
         action: "pair_disconnected",
-        reason: "connectionLost",
+        reason: "connectionFailed",
       });
       teardown();
       return;
     }
+    const sdp = keepLocalNetworkCandidates(rawSdp);
 
     logger.info("offscreen:pair-offer-ready", { sdpLength: sdp.length });
     notifyBackground({ action: "pair_offer_ready", sdp });
@@ -328,7 +333,10 @@ export function createPairPeerModule(
       clearInterval(session.pollTimer);
       session.pollTimer = null;
     }
-    await session.pc.setRemoteDescription({ type: "answer", sdp });
+    await session.pc.setRemoteDescription({
+      type: "answer",
+      sdp: keepLocalNetworkCandidates(sdp),
+    });
     logger.info("offscreen:pair-answer-applied", {});
   }
 
@@ -372,7 +380,7 @@ export function createPairPeerModule(
           logger.error("offscreen:pair-prepare-failed", { error });
           notifyBackground({
             action: "pair_disconnected",
-            reason: "connectionLost",
+            reason: "connectionFailed",
           });
           teardown();
         });
@@ -384,7 +392,7 @@ export function createPairPeerModule(
           logger.error("offscreen:pair-answer-failed", { error });
           notifyBackground({
             action: "pair_disconnected",
-            reason: "connectionLost",
+            reason: "connectionFailed",
           });
           teardown();
         });
