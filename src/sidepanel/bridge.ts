@@ -161,6 +161,7 @@ export function setupIframeBridge(
       } catch {}
     }
     if (msg?.action === "navigate_sidepanel" && typeof msg.path === "string") {
+      chrome.storage.local.remove("vigogh-pending-route").catch(() => {});
       try {
         iframe.contentWindow?.postMessage(
           { type: "VIGOGH_NAVIGATE", path: msg.path },

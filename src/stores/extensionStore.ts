@@ -13,11 +13,13 @@ import type {
   ExtensionLocales,
   ExtensionSettings,
   ExtensionStyles,
+  PairLocales,
   ResolvedAnswerToolConfig,
   ResolvedAnswerToolPageConfig,
   ResolvedExtensionSettings,
   ResolvedLinkItemConfig,
   ResolvedLinkToolConfig,
+  ResolvedPairConfig,
   ResolvedSitesFallbackConfig,
   ResolvedToggleToolConfig,
   ResolvedToolItemConfig,
@@ -263,6 +265,31 @@ function mergeLocales(
       })),
       menu: locales.widget.menu,
     },
+    pair: locales.pair ?? config.pair,
+  };
+}
+
+function resolvePair(raw: PairLocales | undefined): ResolvedPairConfig {
+  const pair = raw ?? {};
+  return {
+    generating: getLocale(pair.generating),
+    permissionAction: getLocale(pair.permissionAction),
+    codeTitle: getLocale(pair.codeTitle),
+    codeInstruction: getLocale(pair.codeInstruction),
+    codeHint: getLocale(pair.codeHint),
+    codeRotation: getLocale(pair.codeRotation),
+    connectingTitle: getLocale(pair.connectingTitle),
+    connectingDescription: getLocale(pair.connectingDescription),
+    endedRestart: getLocale(pair.endedRestart),
+    disclaimer: getLocale(pair.disclaimer),
+    permissionTitle: getLocale(pair.permissionTitle),
+    permissionDescription: getLocale(pair.permissionDescription),
+    permissionScopeTitle: getLocale(pair.permissionScopeTitle),
+    permissionScopeCapture: getLocale(pair.permissionScopeCapture),
+    permissionScopeInput: getLocale(pair.permissionScopeInput),
+    permissionScopeRevoke: getLocale(pair.permissionScopeRevoke),
+    permissionRequesting: getLocale(pair.permissionRequesting),
+    permissionUnavailable: getLocale(pair.permissionUnavailable),
   };
 }
 
@@ -308,6 +335,7 @@ export function resolveConfig(
       ),
     },
     sites: raw.sites,
+    pair: resolvePair(raw.pair),
     behavior: {
       enabled: raw.behavior.enabled,
       debounceMs: raw.behavior.debounceMs,
@@ -337,6 +365,7 @@ export function resolveConfig(
       transcriptionMaxDurationMs: raw.behavior.transcriptionMaxDurationMs,
       transcriptionSampleRate: raw.behavior.transcriptionSampleRate,
       scrollFreezeEnabled: raw.behavior.scrollFreezeEnabled,
+      pairCodeRotationSeconds: raw.behavior.pairCodeRotationSeconds,
     },
     overlay: {
       color: raw.overlay.color,
@@ -375,6 +404,7 @@ export function resolveConfig(
       menuMinWidth: rawWidget.menuMinWidth ?? styles.widget.menuMinWidth,
       menuMaxWidth: rawWidget.menuMaxWidth ?? styles.widget.menuMaxWidth,
       appUrl: rawWidget.appUrl ?? `${BASE_URL}/app`,
+      pairViewerUrl: rawWidget.pairViewerUrl ?? `${BASE_URL}/pair`,
       transformsTooltipDelayMs:
         rawWidget.transformsTooltipDelayMs ??
         styles.widget.transformsTooltipDelayMs,
@@ -431,7 +461,7 @@ export function resolveConfig(
             aiLabel: getLocale(rawWidget.menu.aiLabel),
             panelLabel: getLocale(rawWidget.menu.panelLabel),
             moreLabel: getLocale(rawWidget.menu.moreLabel),
-            lessLabel: getLocale(rawWidget.menu.lessLabel),
+            backLabel: getLocale(rawWidget.menu.backLabel),
             disclaimerText: getLocale(rawWidget.menu.disclaimerText),
             chatDisclaimerText: getLocale(rawWidget.menu.chatDisclaimerText),
             chatEmptyHelp: getLocale(rawWidget.menu.chatEmptyHelp),

@@ -5,6 +5,7 @@ import {
 } from "@/libs/tool-inactivity-timer";
 import { extensionStore } from "@/stores/extensionStore";
 import { disarmAutocomplete } from "@/stores/tools/autocompleteStore";
+import { isPairSessionActive, pairStore } from "@/stores/tools/pairStore";
 import {
   clearToolResult,
   toolResultStore,
@@ -126,12 +127,14 @@ configureToolInactivityTimer({
     const { disabled } = extensionStore.getState();
     const { activeInputItem, chatOpen } = widgetStore.getState();
     const transcriptionActive = transcriptionStore.getState().status !== "idle";
+    const pairActive = isPairSessionActive(pairStore.getState().phase);
     const hasToolResult = toolResultStore.getState().result !== null;
     return (
       !disabled ||
       activeInputItem !== null ||
       chatOpen ||
       transcriptionActive ||
+      pairActive ||
       hasToolResult
     );
   },

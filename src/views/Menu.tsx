@@ -17,6 +17,11 @@ import {
 } from "@/stores/tools/autocompleteStore";
 import { prepareToolContextGated } from "@/stores/tools/contextStore";
 import {
+  isPairSessionActive,
+  pairStore,
+  togglePairSession,
+} from "@/stores/tools/pairStore";
+import {
   applyTransform,
   requestAnswers,
   toolsStore,
@@ -40,16 +45,20 @@ import type {
   ThemeColorSet,
 } from "@/types";
 import { isExtensionContextValid } from "@/utils/extension-context";
+import {
+  resolveMenuPillWidth,
+  resolvePopoverAnchor,
+} from "@/utils/popover-anchor";
 import { resolveZIndex } from "@/utils/z-index";
 import { ToolResultWindow } from "@/views/tools/ToolResultWindow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/views/ui/tooltip";
 
 const QUICK_MESSAGES_TOOL_ID = "quick-messages";
-const DEFAULT_RECENT_SLOTS = 3;
+const DEFAULT_INITIAL_SLOTS = 5;
+const DEFAULT_PAGE_SLOTS = 8;
 
 interface MenuEntry {
   id: string;
-  kind: "tool" | "transform";
   pinned: boolean;
   icon: React.ReactNode;
   label: string;
@@ -65,6 +74,7 @@ export default function Menu() {
   const styles = useStore(stylesStore, (s) => s.styles);
   const autocompleteDisabled = useStore(extensionStore, (s) => s.disabled);
   const transcriptionStatus = useStore(transcriptionStore, (s) => s.status);
+  const pairPhase = useStore(pairStore, (s) => s.phase);
   const userToolsEnabled = useStore(extensionStore, (s) => s.userToolsEnabled);
   const quickMessagesEnabled =
     userToolsEnabled[QUICK_MESSAGES_TOOL_ID] !== false;
@@ -79,7 +89,7 @@ export default function Menu() {
   );
   const [appearance, setAppearance] = useState<AiButtonAppearance | null>(null);
   const [menuHovered, setMenuHovered] = useState(false);
-  const [moreExpanded, setMoreExpanded] = useState(false);
+  const [page, setPage] = useState(0);
   const circleRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -114,7 +124,7 @@ export default function Menu() {
   }, [overlayVisible, autocompleteDisabled]);
 
   useEffect(() => {
-    if (!panelVisible) setMoreExpanded(false);
+    if (!panelVisible) setPage(0);
   }, [panelVisible]);
 
   useEffect(() => {
@@ -155,19 +165,14 @@ export default function Menu() {
 
   const effectiveBottom = pos?.bottom ?? parseFloat(widgetConfig.bottom);
   const effectiveRight = pos?.right ?? parseFloat(widgetConfig.right);
+  const popoverAnchor = resolvePopoverAnchor(widgetConfig, styles, pos);
   const shineDuration = widgetConfig.shineDuration;
   const sweepDuration = widgetConfig.sweepDuration;
   const loadingDuration = widgetConfig.loadingAnimation.duration;
 
   const circleSize = styles.widget.baseCircleSize;
-  const effectiveMenuWidth = Math.max(
-    styles.widget.menuWidthMin,
-    Math.round(
-      circleSize * (styles.widget.menuWidth / styles.widget.circleSize),
-    ),
-  );
-  const pillWidth = effectiveMenuWidth + styles.widget.pillPadding * 2;
-  const popoverRight = effectiveRight + pillWidth + styles.widget.popoverGap;
+  const pillWidth = resolveMenuPillWidth(styles);
+  const popoverRight = popoverAnchor.right;
   const pillFontSize = styles.widget.baseFontSize;
   const pillIconSize = styles.widget.baseIconSize;
   const pillPaddingV = styles.widget.basePaddingV;
@@ -193,7 +198,6 @@ export default function Menu() {
       const Icon = resolveIcon(item.icon);
       const base = {
         id: item.id,
-        kind: "tool" as const,
         pinned: item.pinned === true,
         icon: <Icon size={pillIconSize} />,
         label: item.label ?? "",
@@ -227,6 +231,16 @@ export default function Menu() {
             active: !autocompleteDisabled,
             activeBackground: colors.toggleEnabledBackground,
             onClick: handleItemClickNoContext(() => toggleAutocomplete()),
+          },
+        ];
+      }
+      if (item.type === "toggle" && item.toggleTarget === "pair") {
+        return [
+          {
+            ...base,
+            active: isPairSessionActive(pairPhase),
+            activeBackground: colors.toggleEnabledBackground,
+            onClick: handleItemClickNoContext(() => togglePairSession()),
           },
         ];
       }
@@ -279,7 +293,6 @@ export default function Menu() {
     return [
       {
         id: tool.id,
-        kind: "tool",
         pinned: false,
         icon: <Icon size={pillIconSize} />,
         label: tool.getLabel(menuLabels),
@@ -298,7 +311,6 @@ export default function Menu() {
       const Icon = resolveIcon(item.icon);
       return {
         id: item.id,
-        kind: "transform",
         pinned: false,
         icon: <Icon size={pillIconSize} />,
         label: item.label ?? "",
@@ -323,14 +335,25 @@ export default function Menu() {
     const index = recentToolIds.indexOf(id);
     return index === -1 ? unusedRank : index;
   };
-  const recentEntries = [...poolEntries]
-    .sort((a, b) => rankOf(a.id) - rankOf(b.id))
-    .slice(0, styles.widget.menuRecentSlots ?? DEFAULT_RECENT_SLOTS);
-  const hiddenEntries = poolEntries.filter((e) => !recentEntries.includes(e));
-  const hiddenToolEntries = hiddenEntries.filter((e) => e.kind === "tool");
-  const hiddenTransformEntries = hiddenEntries.filter(
-    (e) => e.kind === "transform",
-  );
+  const orderedEntries = [
+    ...pinnedEntries,
+    ...[...poolEntries].sort((a, b) => rankOf(a.id) - rankOf(b.id)),
+  ];
+
+  const initialSlots = styles.widget.menuInitialSlots ?? DEFAULT_INITIAL_SLOTS;
+  const pageSlots = styles.widget.menuPageSlots ?? DEFAULT_PAGE_SLOTS;
+  const total = orderedEntries.length;
+  const pageCount =
+    total <= initialSlots
+      ? 1
+      : 1 + Math.ceil((total - initialSlots) / pageSlots);
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageStart =
+    currentPage === 0 ? 0 : initialSlots + (currentPage - 1) * pageSlots;
+  const pageEnd = currentPage === 0 ? initialSlots : pageStart + pageSlots;
+  const pageEntries = orderedEntries.slice(pageStart, pageEnd);
+  const hasPreviousPage = currentPage > 0;
+  const hasNextPage = currentPage < pageCount - 1;
 
   const renderEntry = (entry: MenuEntry) => (
     <PillButton
@@ -361,16 +384,16 @@ export default function Menu() {
     />
   );
 
-  const moreToggle = (
+  const renderPageButton = (direction: "up" | "down") => (
     <PanelButton
       icon={
-        moreExpanded ? (
+        direction === "up" ? (
           <ChevronUp size={pillIconSize} />
         ) : (
           <ChevronDown size={pillIconSize} />
         )
       }
-      label={moreExpanded ? menuLabels.lessLabel : menuLabels.moreLabel}
+      label={direction === "up" ? menuLabels.backLabel : menuLabels.moreLabel}
       hoverBg={colors.itemSecondaryHoverBackground}
       textColor={colors.textColor}
       fontSize={pillFontSize}
@@ -378,7 +401,7 @@ export default function Menu() {
       paddingH={pillPaddingH}
       borderRadius={pillBorderRadius}
       hoverTransitionMs={styles.widget.pillHoverTransitionMs}
-      onClick={() => setMoreExpanded(!moreExpanded)}
+      onClick={() => setPage(currentPage + (direction === "up" ? -1 : 1))}
     />
   );
 
@@ -478,9 +501,13 @@ export default function Menu() {
             pointerEvents: panelVisible ? "none" : "auto",
           }}
           onMouseEnter={() => setPanelVisible(true)}
-          onClick={() =>
-            window.open(widgetConfig.appUrl, "_blank", "noopener,noreferrer")
-          }
+          onClick={() => {
+            if (isPairSessionActive(pairPhase)) {
+              setPanelVisible(true);
+              return;
+            }
+            window.open(widgetConfig.appUrl, "_blank", "noopener,noreferrer");
+          }}
         >
           <img
             src={chrome.runtime.getURL(
@@ -512,7 +539,7 @@ export default function Menu() {
           alignItems: "stretch",
           gap: `${styles.widget.pillGap}px`,
           padding: `${styles.widget.pillPadding}px`,
-          minWidth: `${effectiveMenuWidth + styles.widget.pillPadding * 2}px`,
+          minWidth: `${pillWidth}px`,
           background: colors.menuBackground,
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
@@ -582,25 +609,9 @@ export default function Menu() {
             <TooltipContent>{config.messages.info.DRAG_LABEL}</TooltipContent>
           </Tooltip>
 
-          {pinnedEntries.map(renderEntry)}
-          {recentEntries.map(renderEntry)}
-
-          {hiddenEntries.length > 0 &&
-            (moreExpanded ? (
-              <>
-                {hiddenToolEntries.map(renderEntry)}
-                {hiddenTransformEntries.length > 0 && (
-                  <>
-                    {divider}
-                    {hiddenTransformEntries.map(renderEntry)}
-                    {divider}
-                  </>
-                )}
-                {moreToggle}
-              </>
-            ) : (
-              moreToggle
-            ))}
+          {hasPreviousPage && renderPageButton("up")}
+          {pageEntries.map(renderEntry)}
+          {hasNextPage && renderPageButton("down")}
 
           {divider}
 

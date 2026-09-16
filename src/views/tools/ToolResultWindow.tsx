@@ -92,6 +92,7 @@ export function ToolResultWindow({
       initialHeight={windowDims?.initialHeight ?? 380}
       actions={actions}
       onClose={clearToolResult}
+      disclaimer={config.menu?.disclaimerText}
     >
       <div
         className="flex-1 min-h-0 overflow-y-auto px-3 py-2 text-sm text-white break-words whitespace-pre-wrap select-text cursor-text leading-snug"

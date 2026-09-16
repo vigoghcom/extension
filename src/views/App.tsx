@@ -6,9 +6,11 @@ import { autocompleteStore } from "@/stores/tools/autocompleteStore";
 import cssText from "@/styles/index.compiled.css";
 import type { AiButtonAppearance } from "@/types";
 import Menu from "./Menu";
+import PairIndicator from "./PairIndicator";
 import ScrollFreezeOverlay from "./ScrollFreezeOverlay";
 import StickyNotesLayer from "./StickyNotesLayer";
 import Overlay from "./tools/Overlay";
+import PairWindow from "./tools/PairWindow";
 import { Toaster } from "./ui/sonner";
 import { TooltipProvider } from "./ui/tooltip";
 
@@ -63,6 +65,8 @@ export default function App() {
       {widgetVisible && <ScrollFreezeOverlay />}
       {overlayVisible && <Overlay />}
       {colors && <StickyNotesLayer colors={colors} />}
+      {colors && <PairIndicator colors={colors} />}
+      {colors && <PairWindow colors={colors} />}
       {colors && <Toaster position="top-right" colors={colors} />}
       <div
         ref={setTooltipContainer}

@@ -64,7 +64,7 @@ export async function navigateSidepanel(path: string): Promise<void> {
   if (!isExtensionContextValid()) return;
 
   try {
-    await chrome.storage.local.set({ [PENDING_ROUTE_KEY]: path });
+    void chrome.storage.local.set({ [PENDING_ROUTE_KEY]: path });
   } catch {}
 
   await openSidePanel();

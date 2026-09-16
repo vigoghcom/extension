@@ -15,6 +15,10 @@ const DEFAULT_ENDPOINTS: Record<EndpointKey, string> = {
   quickMessages: "/v1/tools/quick-messages",
   quickMessagesById: "/v1/tools/quick-messages/:id",
   transcriptions: "/v1/tools/transcriptions",
+  pairSessions: "/v1/tools/pair/sessions",
+  pairSessionOffer: "/v1/tools/pair/sessions/:sessionId/offer",
+  pairSessionStatus: "/v1/tools/pair/sessions/:sessionId/status",
+  pairSessionEnd: "/v1/tools/pair/sessions/:sessionId/end",
 };
 
 let cached: Partial<Record<EndpointKey, string>> = {};

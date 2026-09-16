@@ -5,6 +5,7 @@ import { extractPageContent } from "@/libs/page-content-extraction";
 import { extractPageForms } from "@/libs/page-forms-extraction";
 import { extractPageMetadata } from "@/libs/page-metadata-extraction";
 import { extractPageURL } from "@/libs/page-url-extraction";
+import { applyPairInput, readPairViewport } from "@/libs/pair-input";
 import { initSessionCache } from "@/libs/session";
 import { toastr } from "@/libs/toastr";
 import {
@@ -27,6 +28,7 @@ import {
   reactivateAutocompleteField,
   scheduleCompletion,
 } from "@/stores/tools/autocompleteStore";
+import { initPairTool, receivePairState } from "@/stores/tools/pairStore";
 import { setHasEditorText, setSelectedRange } from "@/stores/tools/toolsStore";
 import {
   receiveInterceptedAudio,
@@ -66,6 +68,7 @@ if (!(window as any).__vigoghInit) {
     void initAuthSessionCache();
     void initSessionCache();
     initIndicatorListener();
+    initPairTool();
     setupListeners(host);
     notifyExtensionStatus();
     if (isExtensionContextValid()) {
@@ -391,6 +394,19 @@ if (!(window as any).__vigoghInit) {
         if (bottom) bottom.style.visibility = "";
         const top = document.getElementById("vigogh-top-indicator");
         if (top) top.style.visibility = "";
+      }
+      if (msg.action === "pair_state") {
+        receivePairState(msg.state);
+        return;
+      }
+      if (msg.action === "pair_input_dispatch") {
+        applyPairInput(msg.input);
+        sendResponse({ ok: true });
+        return;
+      }
+      if (msg.action === "pair_viewport") {
+        sendResponse({ ok: true, viewport: readPairViewport() });
+        return;
       }
       if (msg.action === "activate_widget") {
         activatePanel();

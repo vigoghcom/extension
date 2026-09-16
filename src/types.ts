@@ -290,7 +290,116 @@ export type ExtensionMessage =
   | ApiRequestMessage
   | SeriousErrorBroadcastMessage
   | SeriousErrorToastMessage
-  | DebugLogBroadcastMessage;
+  | DebugLogBroadcastMessage
+  | PairStartMessage
+  | PairRestartMessage
+  | PairStopMessage
+  | PairGetStateMessage
+  | PairRequestPermissionMessage
+  | PairOfferReadyMessage
+  | PairConnectedMessage
+  | PairDisconnectedMessage
+  | PairPollMessage
+  | PairCaptureMessage
+  | PairInputMessage
+  | PairStateMessage
+  | OffscreenPairPrepareMessage
+  | OffscreenPairAnswerMessage
+  | OffscreenPairStartFramesMessage
+  | OffscreenPairTeardownMessage;
+
+export type PairHostPhase =
+  | "idle"
+  | "starting"
+  | "waitingCode"
+  | "connecting"
+  | "connected"
+  | "ended"
+  | "error";
+
+export interface PairHostState {
+  phase: PairHostPhase;
+  code: string | null;
+  expiresAt: string | null;
+  tabTitle: string | null;
+  errorCode: string | null;
+  endedReason: string | null;
+  hasHostPermission: boolean;
+}
+
+export interface PairStartMessage {
+  action: "pair_start";
+}
+
+export interface PairRestartMessage {
+  action: "pair_restart";
+}
+
+export interface PairStopMessage {
+  action: "pair_stop";
+  reason?: string;
+}
+
+export interface PairGetStateMessage {
+  action: "pair_get_state";
+}
+
+export interface PairRequestPermissionMessage {
+  action: "pair_request_permission";
+}
+
+export interface PairOfferReadyMessage {
+  action: "pair_offer_ready";
+  sdp: string;
+}
+
+export interface PairConnectedMessage {
+  action: "pair_connected";
+}
+
+export interface PairDisconnectedMessage {
+  action: "pair_disconnected";
+  reason: string;
+}
+
+export interface PairPollMessage {
+  action: "pair_poll";
+}
+
+export interface PairCaptureMessage {
+  action: "pair_capture";
+}
+
+export interface PairInputMessage {
+  action: "pair_input";
+  input: unknown;
+}
+
+export interface PairStateMessage {
+  action: "pair_state";
+  state: PairHostState;
+}
+
+export interface OffscreenPairPrepareMessage {
+  action: "offscreen_pair_prepare";
+}
+
+export interface OffscreenPairAnswerMessage {
+  action: "offscreen_pair_answer";
+  sdp: string;
+}
+
+export interface OffscreenPairStartFramesMessage {
+  action: "offscreen_pair_start_frames";
+  intervalMs: number;
+  viewport: { width: number; height: number };
+  tabTitle: string;
+  tabUrl: string;
+}
+
+export interface OffscreenPairTeardownMessage {
+  action: "offscreen_pair_teardown";
+}
 
 export interface ChatCreateMessage {
   action: "chat_create";
@@ -548,7 +657,8 @@ export interface ExtensionStylesWidget {
   basePaddingH: number;
   logoHeight: number;
   menuWidthMin: number;
-  menuRecentSlots?: number;
+  menuInitialSlots?: number;
+  menuPageSlots?: number;
   menuRecentHistoryLimit?: number;
   pillBorderRadius: string;
   circleIconSize: number;
@@ -612,6 +722,7 @@ export interface ExtensionStylesWindows {
   messages: ExtensionStylesWindowDims;
   toolResult: ExtensionStylesWindowDims;
   stickyNote: ExtensionStylesWindowDims;
+  pair?: ExtensionStylesWindowDims;
 }
 
 export interface ExtensionStylesStickyNote {
@@ -726,7 +837,7 @@ export interface ExtensionLocales {
       aiLabel?: LocaleString;
       panelLabel?: LocaleString;
       moreLabel?: LocaleString;
-      lessLabel?: LocaleString;
+      backLabel?: LocaleString;
       disclaimerText?: LocaleString;
       chatDisclaimerText?: LocaleString;
       chatEmptyHelp?: LocaleString;
@@ -751,6 +862,49 @@ export interface ExtensionLocales {
     };
   };
   themes: Record<string, { label?: LocaleString }>;
+  pair?: PairLocales;
+}
+
+export interface PairLocales {
+  generating?: LocaleString;
+  permissionAction?: LocaleString;
+  codeTitle?: LocaleString;
+  codeInstruction?: LocaleString;
+  codeHint?: LocaleString;
+  codeRotation?: LocaleString;
+  connectingTitle?: LocaleString;
+  connectingDescription?: LocaleString;
+  endedRestart?: LocaleString;
+  disclaimer?: LocaleString;
+  permissionTitle?: LocaleString;
+  permissionDescription?: LocaleString;
+  permissionScopeTitle?: LocaleString;
+  permissionScopeCapture?: LocaleString;
+  permissionScopeInput?: LocaleString;
+  permissionScopeRevoke?: LocaleString;
+  permissionRequesting?: LocaleString;
+  permissionUnavailable?: LocaleString;
+}
+
+export interface ResolvedPairConfig {
+  generating: string;
+  permissionAction: string;
+  codeTitle: string;
+  codeInstruction: string;
+  codeHint: string;
+  codeRotation: string;
+  connectingTitle: string;
+  connectingDescription: string;
+  endedRestart: string;
+  disclaimer: string;
+  permissionTitle: string;
+  permissionDescription: string;
+  permissionScopeTitle: string;
+  permissionScopeCapture: string;
+  permissionScopeInput: string;
+  permissionScopeRevoke: string;
+  permissionRequesting: string;
+  permissionUnavailable: string;
 }
 
 export interface AiButtonAppearance {
@@ -966,7 +1120,7 @@ export interface ToggleToolConfig {
   pinned?: boolean;
   icon?: string;
   label?: LocaleString;
-  toggleTarget: "autocomplete" | "transcription";
+  toggleTarget: "autocomplete" | "transcription" | "pair";
 }
 
 export interface TransformItemConfig {
@@ -1006,6 +1160,7 @@ export interface WidgetConfig {
   menuMinWidth?: string;
   menuMaxWidth?: string;
   appUrl?: string;
+  pairViewerUrl?: string;
   transformsTooltipDelayMs?: number;
   defaultAdditionalInputMaxLength?: number;
   transformsNoSelectionTooltip?: LocaleString;
@@ -1036,7 +1191,7 @@ export interface WidgetConfig {
     aiLabel?: LocaleString;
     panelLabel?: LocaleString;
     moreLabel?: LocaleString;
-    lessLabel?: LocaleString;
+    backLabel?: LocaleString;
     disclaimerText?: LocaleString;
     chatDisclaimerText?: LocaleString;
     chatEmptyHelp?: LocaleString;
@@ -1130,6 +1285,7 @@ export interface ExtensionSettings {
     transcriptionMaxDurationMs?: number;
     transcriptionSampleRate?: number;
     scrollFreezeEnabled?: boolean;
+    pairCodeRotationSeconds?: number;
   };
   overlay: {
     color: string;
@@ -1166,6 +1322,7 @@ export interface ExtensionSettings {
   themes?: ThemeDefinition[];
   sitesFallback?: SitesFallbackConfig;
   sites: SiteConfig[];
+  pair?: PairLocales;
 }
 
 export interface ResolvedBehaviorConfig {
@@ -1197,6 +1354,7 @@ export interface ResolvedBehaviorConfig {
   transcriptionMaxDurationMs?: number;
   transcriptionSampleRate?: number;
   scrollFreezeEnabled?: boolean;
+  pairCodeRotationSeconds?: number;
 }
 
 export interface ResolvedOverlayConfig {
@@ -1231,7 +1389,11 @@ export type EndpointKey =
   | "notesById"
   | "quickMessages"
   | "quickMessagesById"
-  | "transcriptions";
+  | "transcriptions"
+  | "pairSessions"
+  | "pairSessionOffer"
+  | "pairSessionStatus"
+  | "pairSessionEnd";
 
 export interface ResolvedLoadingAnimationConfig {
   enabled?: boolean;
@@ -1272,7 +1434,7 @@ export interface ResolvedToggleToolConfig {
   pinned?: boolean;
   icon?: string;
   label?: string;
-  toggleTarget: "autocomplete" | "transcription";
+  toggleTarget: "autocomplete" | "transcription" | "pair";
 }
 
 export interface ResolvedLinkToolConfig {
@@ -1325,6 +1487,7 @@ export interface ResolvedWidgetConfig {
   menuMinWidth: string;
   menuMaxWidth: string;
   appUrl: string;
+  pairViewerUrl: string;
   transformsTooltipDelayMs: number;
   defaultAdditionalInputMaxLength: number;
   transformsNoSelectionTooltip: string;
@@ -1355,7 +1518,7 @@ export interface ResolvedWidgetConfig {
     aiLabel: string;
     panelLabel: string;
     moreLabel: string;
-    lessLabel: string;
+    backLabel: string;
     disclaimerText: string;
     chatDisclaimerText: string;
     chatEmptyHelp: string;
@@ -1423,4 +1586,5 @@ export interface ResolvedExtensionSettings {
   themes: ThemeDefinition[];
   sitesFallback: ResolvedSitesFallbackConfig;
   sites: SiteConfig[];
+  pair: ResolvedPairConfig;
 }
