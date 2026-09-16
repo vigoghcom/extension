@@ -36,6 +36,8 @@ Every permission in `manifest.json` maps to a specific, narrow need:
 | `storage` | Local storage for the auth token, extension config, and per-site preferences. Nothing leaves the device except what's explicitly sent to the API. |
 | `clipboardWrite` | Used for one-click copy of AI-generated suggestions. |
 | `sidePanel` | Renders the side panel UI. |
+| `tabCapture` | Captures the media stream of a single tab, only for tools you explicitly start on that tab. Capture never runs in the background, targets only the tab you triggered it on, and stops when you end the tool or a duration limit is reached. |
+| `offscreen` | Manifest V3 service workers can't hold media streams or live connections. An offscreen document is created on demand to host that work for tools that need it, and is closed as soon as the tool's session ends. It has no page access of its own. |
 
 No `<all_urls>` content script runs by default. Broader host access, when needed for tab capture, is requested explicitly at runtime through a permission prompt in the side panel, never silently.
 

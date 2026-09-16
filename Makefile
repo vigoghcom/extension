@@ -1,10 +1,15 @@
 version:
-	@if [ -z "$(word 2,$(MAKECMDGOALS))" ]; then \
-		echo "Usage: make version <x.y.z>"; \
+	@target="$(word 2,$(MAKECMDGOALS))"; \
+	if [ -z "$$target" ]; then \
+		current=$$(perl -ne 'print $$1 if /"version": "([^"]*)"/' manifest.json); \
+		target=$$(echo "$$current" | awk -F. '{ print $$1 "." $$2 + 1 }'); \
+	fi; \
+	if ! echo "$$target" | grep -Eq '^[0-9]+\.[0-9]+$$'; then \
+		echo "Usage: make version [x.y]"; \
 		exit 1; \
-	fi
-	@perl -pi -e 's/"version": "[^"]*"/"version": "$(word 2,$(MAKECMDGOALS))"/' package.json manifest.json
-	@echo "🔖 version set to $(word 2,$(MAKECMDGOALS))"
+	fi; \
+	perl -pi -e "s/\"version\": \"[^\"]*\"/\"version\": \"$$target\"/" package.json manifest.json; \
+	echo "🔖 version set to $$target"
 
 %:
 	@:

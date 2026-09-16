@@ -3,8 +3,10 @@ import { extensionStore } from "@/stores/extensionStore";
 import { autocompleteStore } from "@/stores/tools/autocompleteStore";
 import { chatStore } from "@/stores/tools/chatStore";
 import { contextStore } from "@/stores/tools/contextStore";
+import { pairStore } from "@/stores/tools/pairStore";
 import { toolsStore } from "@/stores/tools/toolsStore";
 import { transcriptionStore } from "@/stores/tools/transcriptionStore";
+import type { PairHostPhase } from "@/types";
 import {
   hideIndicator,
   setBottomBorderLoading,
@@ -27,7 +29,7 @@ export const indicatorStore = createStore<IndicatorState>()(() => ({
 }));
 
 const topTimers: ReturnType<typeof setTimeout>[] = [];
-const bottomTimers: ReturnType<typeof setTimeout>[] = [];
+const bottomTimers: (ReturnType<typeof setTimeout> | null)[] = [];
 
 function getTopIndicatorMaxDurationMs(): number {
   const { config } = extensionStore.getState();
@@ -63,7 +65,7 @@ export function hideTopIndicator(): void {
   if (count === 0) hideIndicator("top-border");
 }
 
-export function showBottomIndicator(): void {
+export function showBottomIndicator(persistent = false): void {
   const count = indicatorStore.getState().bottomCount + 1;
   indicatorStore.setState({ bottomCount: count });
   if (count === 1) {
@@ -74,7 +76,9 @@ export function showBottomIndicator(): void {
     }
   }
   bottomTimers.push(
-    setTimeout(hideBottomIndicator, getBottomIndicatorMaxDurationMs()),
+    persistent
+      ? null
+      : setTimeout(hideBottomIndicator, getBottomIndicatorMaxDurationMs()),
   );
 }
 
@@ -125,3 +129,18 @@ subscribeLoadingToIndicator(
   showTopIndicator,
   hideTopIndicator,
 );
+
+const PAIR_BUSY_PHASES: PairHostPhase[] = ["starting", "connecting"];
+
+let pairIndicatorActive = false;
+pairStore.subscribe((state, prev) => {
+  if (state.phase === prev.phase) return;
+  const pending = PAIR_BUSY_PHASES.includes(state.phase);
+  if (pending && !pairIndicatorActive) {
+    pairIndicatorActive = true;
+    showBottomIndicator(true);
+  } else if (!pending && pairIndicatorActive) {
+    pairIndicatorActive = false;
+    hideBottomIndicator();
+  }
+});
