@@ -1,0 +1,50 @@
+name: Build Extension
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  extension:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Use Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
+
+      - name: Install dependencies
+        working-directory: .
+        run: npm ci
+
+      - name: Build
+        working-directory: .
+        run: make zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: extension-${{ github.sha }}
+          path: extension.zip
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="$(date +'%Y%m%d')-${GITHUB_SHA::7}"
+          gh release create "$TAG" \
+            --title "Extension — $TAG" \
+            --generate-notes \
+            --target "$GITHUB_SHA" \
+            extension.zip

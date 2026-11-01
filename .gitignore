@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.zip
+src/styles/index.compiled.css
+
+# local debug config
+.extension-id
+
+# logs
+*.log
+
+# macOS
+.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
